@@ -1,0 +1,6 @@
+torch>=2.4
+pandas
+numpy
+matplotlib
+transformers>=5
+accelerate

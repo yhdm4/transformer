@@ -1,0 +1,17 @@
+train_csv: ../data/train.csv
+valid_csv: ../data/valid.csv
+test_csv: ../data/test.csv
+output_dir: results
+max_len: 64
+batch_size: 32
+epochs: 30
+learning_rate: 0.0002
+weight_decay: 0.0001
+min_freq: 1
+dim: 128
+num_heads: 4
+ff_dim: 256
+num_layers: 2
+dropout: 0.1
+num_classes: 2
+seed: 42

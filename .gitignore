@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 data/
 .venv/
+version_a_tiny_transformer/results/
+version_b_bert_finetune/results/
+version_b_bert_finetune/hf_cache/

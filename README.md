@@ -1,47 +1,90 @@
-# 中文文本分类：手写 Attention 与 Tiny Transformer
+# 中文文本分类：手写 Transformer 与 BERT 微调对比
 
-这个项目用 PyTorch 从零实现 Self-Attention、Multi-Head Self-Attention 和一个简化版 Transformer Encoder，并把它用于中文短文本情感分类实验。
+这个项目包含两个版本的中文情感分类实现：
 
-项目重点是理解 Transformer 的核心结构，而不是追求很高的分类准确率。代码尽量保持小而直接，适合作为 Attention/Transformer 入门练习。
+- 版本 A：手写 Tiny Transformer，用来学习 Attention 和 Transformer Encoder 的底层原理。
+- 版本 B：基于 `bert-base-chinese` 的 BERT 微调，用来贴近真实工业项目流程。
 
-## 功能概览
-
-- 字符级 tokenizer：将中文文本按单字切分并映射为 token id。
-- Self-Attention：演示单头注意力的基本计算过程。
-- Multi-Head Self-Attention：实现多头注意力的 Q/K/V 投影、分头计算和输出投影。
-- Transformer Encoder Block：包含残差连接、LayerNorm、FFN 和 Dropout。
-- TinyTransformerClassifier：基于 Encoder 的中文情感二分类模型。
-- 数据生成脚本：内置少量正负样本，可生成训练集和验证集 CSV。
-- 训练脚本：完成数据加载、模型训练和验证集准确率评估。
+推荐学习路径是先跑版本 A，理解 tokenizer、embedding、self-attention、multi-head attention、encoder block 和 classifier；再跑版本 B，对比预训练模型微调后的效果。
 
 ## 项目结构
 
 ```text
 .
-├── attention.py                    # 单头 Self-Attention 示例
-├── multi_head_self_attention.py    # 多头 Self-Attention 实现
-├── tiny_transformer.py             # Transformer Encoder Block 和分类模型
-├── tokenizer.py                    # 字符级 tokenizer
-├── dataset.py                      # 文本分类 Dataset
-├── make_data.py                    # 生成示例中文情感分类数据
-├── train.py                        # 训练入口
-├── data/                           # 生成后的 CSV 数据目录
+├── data/
+│   ├── train.csv
+│   ├── valid.csv
+│   └── test.csv
+├── version_a_tiny_transformer/
+│   ├── experiments/
+│   │   └── tiny_transformer_config.yaml
+│   ├── src/
+│   │   ├── attention.py
+│   │   ├── dataset.py
+│   │   ├── evaluate.py
+│   │   ├── model.py
+│   │   ├── tokenizer.py
+│   │   ├── train.py
+│   │   └── utils.py
+│   └── results/
+├── version_b_bert_finetune/
+│   ├── experiments/
+│   │   └── bert_finetune_config.yaml
+│   ├── src/
+│   │   ├── dataset.py
+│   │   ├── evaluate.py
+│   │   ├── train.py
+│   │   └── utils.py
+│   └── results/
+├── make_data.py
 └── README.md
 ```
 
+`results/` 是训练时自动生成的目录，用来保存模型、指标、错误样本和可视化图片。
+
 ## 环境依赖
 
-建议使用 Python 3.9+。项目依赖：
+基础依赖：
 
 ```bash
-pip install torch pandas
+pip install torch pandas numpy
 ```
 
-如果你使用 CUDA 版本的 PyTorch，请按自己的显卡和 CUDA 版本从 PyTorch 官方安装命令安装。
+如果要保存 loss 曲线、准确率曲线和混淆矩阵图片，再安装：
 
-## 数据格式
+```bash
+pip install matplotlib
+```
 
-训练和验证数据是 CSV 文件，包含两列：
+如果要运行 BERT 微调版，再安装：
+
+```bash
+pip install transformers accelerate
+```
+
+如果你的环境里是 `torch 2.0.x`，不要安装较新的 `transformers`，因为新版会要求更高版本的 PyTorch。可以使用兼容版本：
+
+```bash
+python -m pip install "transformers==4.30.2" accelerate
+```
+
+如果你想保留 `transformers>=5`，则需要升级 PyTorch：
+
+```bash
+python -m pip install "torch>=2.4" transformers accelerate
+```
+
+本项目也提供了三个依赖文件：
+
+```bash
+pip install -r requirements-a.txt
+pip install -r requirements-b.txt
+pip install -r requirements-b-torch20.txt
+```
+
+## 数据准备
+
+数据文件使用 CSV 格式，至少包含两列：
 
 ```text
 text,label
@@ -56,118 +99,179 @@ text,label
 0 = 负面
 ```
 
-`make_data.py` 会生成：
-
-- `data/all.csv`
-- `data/train.csv`
-- `data/valid.csv`
-
-注意：`.gitignore` 当前忽略了 `data/`，因此生成的数据默认不会提交到 Git。
-
-## 使用方法
-
-### 1. 生成数据
+生成示例数据：
 
 ```bash
 python make_data.py
 ```
 
-脚本会把内置的中文评论样本按类别分层切分为训练集和验证集，并打印样本数量与标签分布。
+当前配置默认读取：
 
-### 2. 训练模型
+- `data/train.csv`
+- `data/valid.csv`
+
+如果你换成自己的数据，只要保持 `text,label` 两列即可。
+
+## 版本 A：手写 Tiny Transformer
+
+代码位置：
+
+```text
+version_a_tiny_transformer/
+```
+
+这个版本自己实现：
+
+- `CharTokenizer`
+- token embedding
+- position embedding
+- `SelfAttention`
+- `MultiHeadSelfAttention`
+- `TransformerEncoderBlock`
+- `TinyTransformerClassifier`
+- 训练、验证、保存指标和错误样本
+
+运行训练：
 
 ```bash
-python train.py
+python version_a_tiny_transformer/src/train.py
 ```
 
-训练脚本会：
-
-1. 读取 `data/train.csv` 和 `data/valid.csv`。
-2. 用训练集文本构建字符级词表。
-3. 将文本编码到固定长度 `max_len=64`。
-4. 训练一个 2 层 Tiny Transformer 分类器。
-5. 每个 epoch 输出训练 loss 和验证集准确率。
-
-默认训练参数在 `train.py` 中：
-
-```python
-max_len = 64
-batch_size = 32
-num_epochs = 200
-learning_rate = 2e-4
-```
-
-模型配置：
-
-```python
-dim = 128
-num_heads = 4
-ff_dim = 256
-num_layers = 2
-num_classes = 2
-```
-
-## 核心实现说明
-
-### Self-Attention
-
-`attention.py` 展示了最基础的自注意力计算：
+默认配置文件：
 
 ```text
-Q = XWq
-K = XWk
-V = XWv
-Attention(Q, K, V) = softmax(QK^T / sqrt(d))V
+version_a_tiny_transformer/experiments/tiny_transformer_config.yaml
 ```
 
-输入和输出形状保持为：
+核心参数：
+
+```yaml
+max_len: 64
+batch_size: 32
+epochs: 30
+learning_rate: 0.0002
+dim: 128
+num_heads: 4
+ff_dim: 256
+num_layers: 2
+```
+
+输出结果：
 
 ```text
-[batch_size, seq_len, dim]
+version_a_tiny_transformer/results/
+├── best_model.pt
+├── history.json
+├── metrics.json
+├── error_cases.csv
+├── loss_curve.png
+├── acc_curve.png
+└── confusion_matrix.png
 ```
 
-### Multi-Head Self-Attention
+这个版本适合写原理说明，也适合面试时讲清楚 Transformer 的前向传播过程。
 
-`multi_head_self_attention.py` 将 embedding 维度拆成多个 head：
+## 版本 B：BERT 微调
+
+代码位置：
 
 ```text
-[B, L, D] -> [B, H, L, head_dim]
+version_b_bert_finetune/
 ```
 
-每个 head 独立计算注意力，再拼回原始维度并通过输出线性层。
+这个版本使用 HuggingFace Transformers：
 
-### Transformer Encoder Block
+- `AutoTokenizer`
+- `AutoModelForSequenceClassification`
+- `bert-base-chinese`
+- AdamW 微调
+- 验证集评估、保存最佳模型、错误样本和曲线
 
-`tiny_transformer.py` 中的 `TransformerEncoderBlock` 包含：
+运行训练：
 
-- Multi-Head Self-Attention
-- 残差连接
-- LayerNorm
-- 前馈网络 FFN
-- Dropout
+```bash
+python version_b_bert_finetune/src/train.py
+```
 
-结构是：
+默认配置文件：
 
 ```text
-x -> attention -> residual + norm -> ffn -> residual + norm
+version_b_bert_finetune/experiments/bert_finetune_config.yaml
 ```
 
-### 文本分类
+核心参数：
 
-`TinyTransformerClassifier` 会先把 token id 转成 token embedding，再加上 position embedding。经过多层 Encoder 后，对序列维度做 mean pooling，最后用线性层输出二分类 logits。
+```yaml
+model_name: bert-base-chinese
+max_len: 128
+batch_size: 16
+epochs: 3
+learning_rate: 0.00002
+weight_decay: 0.01
+```
 
-## 注意事项
+输出结果：
 
-- 当前数据集很小，只适合验证流程和理解模型结构，不适合作为真实情感分类模型。
-- `tiny_transformer.py` 和 `attention.py` 末尾包含简单的形状测试代码，直接运行文件时会打印输出 tensor 形状。
-- `train.py` 从训练集构建 tokenizer，因此验证集中没有见过的字符会被映射为 `[UNK]`。
-- 当前实现没有 attention mask，padding token 也会参与 mean pooling；如果要提升实验严谨性，可以进一步加入 padding mask。
+```text
+version_b_bert_finetune/results/
+├── best_model/
+├── history.json
+├── metrics.json
+├── error_cases.csv
+├── loss_curve.png
+├── acc_curve.png
+└── confusion_matrix.png
+```
 
-## 可扩展方向
+HuggingFace 模型缓存默认写入：
 
-- 添加 attention mask，避免 `[PAD]` 参与注意力和 pooling。
-- 增加模型保存与加载逻辑。
-- 把超参数改成命令行参数。
-- 使用更大的中文文本分类数据集。
-- 增加测试用例，验证各模块输入输出形状。
-- 对比 RNN、CNN、Transformer 在同一数据集上的表现。
+```text
+version_b_bert_finetune/hf_cache/
+```
+
+单独评估最佳模型：
+
+```bash
+python version_b_bert_finetune/src/evaluate.py
+```
+
+第一次运行 BERT 版时，`transformers` 会下载 `bert-base-chinese` 模型文件。没有网络时，需要提前把模型缓存好，或者把配置里的 `model_name` 改成本地模型目录。
+
+如果你的终端设置了无效代理，会导致模型下载失败。PowerShell 中可以先临时清理代理再运行：
+
+```powershell
+Remove-Item Env:HTTP_PROXY -ErrorAction SilentlyContinue
+Remove-Item Env:HTTPS_PROXY -ErrorAction SilentlyContinue
+Remove-Item Env:ALL_PROXY -ErrorAction SilentlyContinue
+python version_b_bert_finetune/src/train.py
+```
+
+如果访问 `huggingface.co` 不稳定，可以在 `version_b_bert_finetune/experiments/bert_finetune_config.yaml` 中打开镜像配置：
+
+```yaml
+hf_endpoint: https://hf-mirror.com
+```
+
+## 两个版本的区别
+
+版本 A 关注“原理”：
+
+- 优点：能看懂并讲清楚 Transformer 的每一层。
+- 缺点：数据少时效果有限，也没有预训练知识。
+
+版本 B 关注“工程效果”：
+
+- 优点：效果通常更好，更接近企业项目中的文本分类方案。
+- 缺点：如果只会调用 API，不理解底层结构，面试解释会比较薄。
+
+这个项目的完整价值在于把两者放在一起：A 版证明你懂原理，B 版证明你会做工业化微调实验。
+
+## 后续可扩展方向
+
+- 给 `data/` 增加正式的 `test.csv`，训练后统一做测试集评估。
+- 把训练日志接入 TensorBoard。
+- 增加 precision、recall、F1-score。
+- 加入命令行参数覆盖配置文件。
+- 增加模型推理脚本 `predict.py`。
+- 用更大的真实中文评论数据集做对比实验。
+- 在 README 中补充 Attention 公式和 BERT 微调原理图。
